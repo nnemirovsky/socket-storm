@@ -106,9 +106,12 @@ public sealed class WebSocketServer : IWebSocketServer
         CheckDisposed();
 
         _listener.Start();
+
         if (!_listener.IsListening) throw new WebSocketException("Server failed to start");
-        Task.Run(async () => await ListenAsync(), _cts.Token)
+
+        Task.Run(async () => await ListenAsync().ConfigureAwait(false), _cts.Token)
             .ContinueWith(t => ExceptionThrown?.Invoke(this, new(t.Exception!)), TaskContinuationOptions.OnlyOnFaulted);
+
         return Task.CompletedTask;
     }
 
@@ -121,7 +124,7 @@ public sealed class WebSocketServer : IWebSocketServer
             HttpListenerContext httpContext;
             try
             {
-                httpContext = await _listener.GetContextAsync();
+                httpContext = await _listener.GetContextAsync().ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is HttpListenerException or ObjectDisposedException)
             {
@@ -132,12 +135,12 @@ public sealed class WebSocketServer : IWebSocketServer
             {
                 if (_sessions.Count >= _maxSessionCount)
                 {
-                    await HandleExtraRequest(httpContext);
+                    await HandleExtraRequest(httpContext).ConfigureAwait(false);
                     continue;
                 }
 
                 #pragma warning disable CS4014
-                Task.Run(async () => await HandleConnectionAsync(httpContext), _cts.Token)
+                Task.Run(async () => await HandleConnectionAsync(httpContext).ConfigureAwait(false), _cts.Token)
                     .ContinueWith(
                         t => ExceptionThrown?.Invoke(this, new(t.Exception!)),
                         TaskContinuationOptions.OnlyOnFaulted
@@ -146,7 +149,7 @@ public sealed class WebSocketServer : IWebSocketServer
             }
             else
             {
-                await HandleHttpRequest(httpContext);
+                await HandleHttpRequest(httpContext).ConfigureAwait(false);
             }
         }
     }
@@ -155,7 +158,9 @@ public sealed class WebSocketServer : IWebSocketServer
     {
         httpContext.Response.StatusCode = (int) HttpStatusCode.BadRequest;
         httpContext.Response.ContentType = "text/plain";
-        await httpContext.Response.OutputStream.WriteAsync("Unsupported protocol"u8.ToArray(), _cts.Token);
+        await httpContext.Response.OutputStream
+            .WriteAsync("Unsupported protocol"u8.ToArray(), _cts.Token)
+            .ConfigureAwait(false);
         httpContext.Response.Close();
     }
 
@@ -163,7 +168,9 @@ public sealed class WebSocketServer : IWebSocketServer
     {
         httpContext.Response.StatusCode = (int) HttpStatusCode.TooManyRequests;
         httpContext.Response.ContentType = "text/plain";
-        await httpContext.Response.OutputStream.WriteAsync("Too many sessions"u8.ToArray(), _cts.Token);
+        await httpContext.Response.OutputStream
+            .WriteAsync("Too many sessions"u8.ToArray(), _cts.Token)
+            .ConfigureAwait(false);
         httpContext.Response.Close();
     }
 
@@ -171,25 +178,24 @@ public sealed class WebSocketServer : IWebSocketServer
     {
         httpContext.Response.StatusCode = (int) HttpStatusCode.BadRequest;
         httpContext.Response.ContentType = "text/plain";
-        await httpContext.Response.OutputStream.WriteAsync(
-            "Only WebSocket connections are allowed"u8.ToArray(),
-            _cts.Token
-        );
+        await httpContext.Response.OutputStream
+            .WriteAsync("Only WebSocket connections are allowed"u8.ToArray(), _cts.Token)
+            .ConfigureAwait(false);
         httpContext.Response.Close();
     }
 
     private async Task HandleConnectionAsync(HttpListenerContext httpContext)
     {
-        if (_preHook is not null && await _preHook(httpContext, _cts.Token) is false) return;
+        if (_preHook is not null && await _preHook(httpContext, _cts.Token).ConfigureAwait(false) is false) return;
 
         WebSocketContext wsContext;
         try
         {
-            wsContext = await httpContext.AcceptWebSocketAsync(_subProtocol, KeepAliveInterval);
+            wsContext = await httpContext.AcceptWebSocketAsync(_subProtocol, KeepAliveInterval).ConfigureAwait(false);
         }
         catch (WebSocketException ex) when (ex.WebSocketErrorCode == WebSocketError.UnsupportedProtocol)
         {
-            await HandleUnsupportedProtocol(httpContext);
+            await HandleUnsupportedProtocol(httpContext).ConfigureAwait(false);
             return;
         }
 
@@ -207,7 +213,7 @@ public sealed class WebSocketServer : IWebSocketServer
                 ResizeBufferIfNecessary(ref buffer, currentIdx);
 
                 var segment = new ArraySegment<byte>(buffer, currentIdx, buffer.Length - currentIdx);
-                var receiveResult = await webSocket.ReceiveAsync(segment, _cts.Token);
+                var receiveResult = await webSocket.ReceiveAsync(segment, _cts.Token).ConfigureAwait(false);
                 if (receiveResult.MessageType == _messageType)
                 {
                     currentIdx += receiveResult.Count;
@@ -229,17 +235,19 @@ public sealed class WebSocketServer : IWebSocketServer
                 }
                 else if (receiveResult.MessageType == WebSocketMessageType.Close)
                 {
-                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closed", _cts.Token);
+                    await webSocket
+                        .CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closed", _cts.Token)
+                        .ConfigureAwait(false);
                 }
             }
         }
         catch (OperationCanceledException) { }
         finally
         {
+            ConnectionClosed?.Invoke(this, new(sessionId));
             ArrayPool.Return(buffer);
             webSocket.Dispose();
             _sessions.TryRemove(sessionId, out _);
-            ConnectionClosed?.Invoke(this, new(sessionId));
         }
     }
 
@@ -275,7 +283,10 @@ public sealed class WebSocketServer : IWebSocketServer
                 s => s.CloseAsync(WebSocketCloseStatus.NormalClosure, "Server stopped", _cts.Token)
             );
 
-        await _sessions.Select(session => Task.Run(() => CloseWsUnderLockAsync(session.Value), _cts.Token)).WhenAll();
+        await _sessions
+            .Select(s => Task.Run(() => CloseWsUnderLockAsync(s.Value).ConfigureAwait(false), _cts.Token))
+            .WhenAll()
+            .ConfigureAwait(false);
 
         _sessions.Clear();
         _listener.Stop();
@@ -293,17 +304,18 @@ public sealed class WebSocketServer : IWebSocketServer
             throw new ArgumentException("Session not found", nameof(sessionId));
         }
 
-        await ExecuteUnderSendLockAsync(session, s => s.SendAsync(message, _messageType, true, _cts.Token));
+        await ExecuteUnderSendLockAsync(session, s => s.SendAsync(message, _messageType, true, _cts.Token))
+            .ConfigureAwait(false);
     }
 
     private async Task ExecuteUnderSendLockAsync(Session session, Func<WebSocket, Task> action)
     {
-        await session.SendLock.WaitAsync(_cts.Token);
+        await session.SendLock.WaitAsync(_cts.Token).ConfigureAwait(false);
         try
         {
             if (session.WebSocket.State == WebSocketState.Open)
             {
-                await action(session.WebSocket);
+                await action(session.WebSocket).ConfigureAwait(false);
             }
             else
             {
@@ -320,7 +332,10 @@ public sealed class WebSocketServer : IWebSocketServer
     {
         CheckDisposed();
 
-        await _sessions.Select(s => Task.Run(async () => await SendAsync(message, s.Key))).WhenAll();
+        await _sessions
+            .Select(s => Task.Run(() => Task.FromResult(SendAsync(message, s.Key).ConfigureAwait(false))))
+            .WhenAll()
+            .ConfigureAwait(false);
     }
 
     private void CheckDisposed()
@@ -332,7 +347,7 @@ public sealed class WebSocketServer : IWebSocketServer
     {
         if (_disposed) return;
 
-        StopAsync().Wait();
+        Task.Run(StopAsync).GetAwaiter().GetResult();
         _cts.Dispose();
         ((IDisposable) _listener).Dispose();
         _disposed = true;
