@@ -4,6 +4,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SocketStorm", "SocketStorm\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SocketStorm.Tests", "SocketStorm.Tests\SocketStorm.Tests.csproj", "{989BB4E4-B35E-47B4-A499-221271863732}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SocketStorm.Example", "SocketStorm.Example\SocketStorm.Example.csproj", "{97341CE3-86C5-4EC1-B181-B61D1316924B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{989BB4E4-B35E-47B4-A499-221271863732}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{989BB4E4-B35E-47B4-A499-221271863732}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{989BB4E4-B35E-47B4-A499-221271863732}.Release|Any CPU.Build.0 = Release|Any CPU
+		{97341CE3-86C5-4EC1-B181-B61D1316924B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{97341CE3-86C5-4EC1-B181-B61D1316924B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{97341CE3-86C5-4EC1-B181-B61D1316924B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{97341CE3-86C5-4EC1-B181-B61D1316924B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
