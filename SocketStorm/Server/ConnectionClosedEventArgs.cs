@@ -1,4 +1,4 @@
-namespace SocketStorm;
+namespace SocketStorm.Server;
 
 public class ConnectionClosedEventArgs : EventArgs
 {

@@ -1,4 +1,4 @@
-namespace SocketStorm;
+namespace SocketStorm.Server;
 
 internal static class TaskExtensions
 {

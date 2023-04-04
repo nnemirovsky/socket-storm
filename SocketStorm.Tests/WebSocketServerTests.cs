@@ -1,5 +1,6 @@
 using System.Net.WebSockets;
 using System.Text;
+using SocketStorm.Server;
 using Xunit;
 using Xunit.Abstractions;
 

@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Net.WebSockets;
 
-namespace SocketStorm;
+namespace SocketStorm.Server;
 
 public sealed class WebSocketServer : IWebSocketServer
 {
@@ -45,7 +45,7 @@ public sealed class WebSocketServer : IWebSocketServer
             return !_disposed && !_stopped && _listener.IsListening;
         }
     }
-    
+
     public int ConnectedSessionCount
     {
         get
@@ -298,14 +298,12 @@ public sealed class WebSocketServer : IWebSocketServer
 
     private async Task ExecuteUnderSendLockAsync(Session session, Func<WebSocket, Task> action)
     {
-        var webSocket = session.WebSocket;
-        var sendLock = session.SendLock;
+        await session.SendLock.WaitAsync(_cts.Token);
         try
         {
-            await sendLock.WaitAsync(_cts.Token);
-            if (webSocket.State == WebSocketState.Open)
+            if (session.WebSocket.State == WebSocketState.Open)
             {
-                await action(webSocket);
+                await action(session.WebSocket);
             }
             else
             {
@@ -314,7 +312,7 @@ public sealed class WebSocketServer : IWebSocketServer
         }
         finally
         {
-            sendLock.Release();
+            session.SendLock.Release();
         }
     }
 

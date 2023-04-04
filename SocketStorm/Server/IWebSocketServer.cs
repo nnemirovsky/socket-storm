@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace SocketStorm;
+namespace SocketStorm.Server;
 
 public interface IWebSocketServer : IDisposable
 {
