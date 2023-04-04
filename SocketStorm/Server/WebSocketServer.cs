@@ -42,7 +42,7 @@ public sealed class WebSocketServer : IWebSocketServer
         get
         {
             CheckDisposed();
-            return !_disposed && !_stopped && _listener.IsListening;
+            return !_stopped && _listener.IsListening;
         }
     }
 
@@ -81,7 +81,7 @@ public sealed class WebSocketServer : IWebSocketServer
         {
             WebSocketDataType.Binary => WebSocketMessageType.Binary,
             WebSocketDataType.Text => WebSocketMessageType.Text,
-            _ => throw new ArgumentOutOfRangeException(nameof(dataType), dataType, null)
+            _ => throw new ArgumentOutOfRangeException(nameof(dataType), dataType, "Invalid data type")
         };
 
         _listener.Prefixes.Add($"http://{_host}:{_port}/{_path}/");
@@ -98,7 +98,8 @@ public sealed class WebSocketServer : IWebSocketServer
     {
         CheckDisposed();
 
-        return _sessions.TryGetValue(sessionId, out var session) && session.WebSocket.State == WebSocketState.Open;
+        return _listener.IsListening &&
+               _sessions.TryGetValue(sessionId, out var session) && session.WebSocket.State == WebSocketState.Open;
     }
 
     public Task StartAsync()
@@ -220,15 +221,7 @@ public sealed class WebSocketServer : IWebSocketServer
 
                     if (!receiveResult.EndOfMessage) continue;
 
-                    var message = buffer[..currentIdx];
-                    try
-                    {
-                        MessageReceived?.Invoke(this, new(message, sessionId));
-                    }
-                    catch
-                    {
-                        // ignored
-                    }
+                    MessageReceived?.Invoke(this, new(buffer[..currentIdx], sessionId));
 
                     currentIdx = 0;
                     ResetBufferIfNecessary(ref buffer);
