@@ -9,14 +9,6 @@ SocketStorm is a lightweight C# library that implements WebSocket server as a wr
 - Lightweight with minimal dependencies
 - Easy integration with existing .NET applications
 
-## Installation
-
-You can add SocketStorm to your project using NuGet:
-
-```
-// TODO: Add NuGet package installation instructions
-```
-
 ## Quick Start
 
 Creating a WebSocket server with SocketStorm is simple. Here's how to get started:
